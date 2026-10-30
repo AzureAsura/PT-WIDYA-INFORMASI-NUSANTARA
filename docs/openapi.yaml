@@ -1,0 +1,254 @@
+openapi: 3.0.3
+info:
+  title: KNOWLEDGE TEST SOFTWARE ENGINEER PT WIDYA INFORMASI NUSANTARA
+  version: 1.0.0
+  description: |
+    REST API for account registration, login, and profile access using JWT.
+
+    How to try it:
+    1. Create an account with `POST /auth/register`.
+    2. Log in with `POST /auth/login` and copy the `accessToken` from the response.
+    3. Click **Authorize** (top right) and paste the token.
+    4. Call `GET /users/profile`.
+servers:
+  - url: http://localhost:8000
+tags:
+  - name: Health
+  - name: Auth
+  - name: Users
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Check that the server is running
+      security: []
+      responses:
+        '200':
+          description: Server is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Create a new account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User registered
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              example:
+                message: Validation failed
+                errors:
+                  confirmPassword: [Passwords do not match]
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              example:
+                message: Email already registered
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and get an access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login successful
+                  accessToken:
+                    type: string
+                    description: 'JWT to send as `Authorization: Bearer <accessToken>`'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              example:
+                message: Validation failed
+                errors:
+                  email: [Invalid email address]
+        '401':
+          description: Wrong email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              example:
+                message: Invalid email or password
+
+  /users/profile:
+    get:
+      tags: [Users]
+      summary: Get the profile of the logged-in user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Profile retrieved
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Token missing, invalid, or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              examples:
+                missing:
+                  value:
+                    message: Missing token
+                invalid:
+                  value:
+                    message: Invalid or expired token
+        '404':
+          description: Token is valid but the user no longer exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              example:
+                message: User not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [name, email, gender, password, confirmPassword]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Budi Santoso
+        email:
+          type: string
+          format: email
+          example: budi@mail.com
+        gender:
+          type: string
+          enum: [MALE, FEMALE]
+          example: MALE
+        password:
+          type: string
+          minLength: 8
+          example: rahasia123
+        confirmPassword:
+          type: string
+          description: Must be identical to `password`
+          example: rahasia123
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: budi@mail.com
+        password:
+          type: string
+          example: rahasia123
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 74ac1981-48d2-4ec2-a181-176ca06d941c
+        name:
+          type: string
+          example: Budi Santoso
+        email:
+          type: string
+          format: email
+          example: budi@mail.com
+        gender:
+          type: string
+          enum: [MALE, FEMALE]
+          example: MALE
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      properties:
+        message:
+          type: string
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Validation failed
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
